@@ -1,0 +1,490 @@
+openapi: 3.0.0
+info:
+  title: Product Management API
+  version: 1.0.0
+  description: |
+    API for managing products in the 99tech interview problem 5.
+
+    **Note**: This is a small part of a project to demonstrate CRUD API capabilities and does not support full features.
+
+    **Authentication**:
+    To simplify, we don't use real authentication methods like JWT. We use two headers to demonstrate user role and permission checks:
+    - `X-User-Id`: User ID (number)
+    - `X-User-Role`: User role (ADMIN | SELLER | USER)
+
+    **Test Users**:
+    You can use the following test users in your API requests by setting the appropriate headers:
+
+    1. **Normal user** - Can view products but has limited permissions
+       - Headers: `X-User-Id: 1` and `X-User-Role: USER`
+
+    2. **Seller user** - Can create and manage their own products
+       - Headers: `X-User-Id: 2` and `X-User-Role: SELLER`
+
+    3. **Admin user** - Has full access to all products and operations
+       - Headers: `X-User-Id: 3` and `X-User-Role: ADMIN`
+
+    **Example Request**:
+    ```
+    curl -X GET http://localhost:4000/api/v1/products \
+      -H "X-User-Id: 3" \
+      -H "X-User-Role: ADMIN"
+    ```
+servers:
+  - url: http://localhost:4000/api/v1
+    description: Local server
+components:
+  securitySchemes:
+    userId:
+      type: apiKey
+      in: header
+      name: X-User-Id
+      description: Mock User ID for authentication
+    userRole:
+      type: apiKey
+      in: header
+      name: X-User-Role
+      description: Mock User Role for authentication (ADMIN or USER)
+  schemas:
+    ProductStatus:
+      type: string
+      enum:
+        - ACTIVE
+        - INACTIVE
+        - DELETED
+        - OUT_OF_STOCK
+    Product:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        price:
+          type: number
+        category:
+          type: string
+        stock:
+          type: integer
+        status:
+          $ref: '#/components/schemas/ProductStatus'
+        ownerId:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+    ProductCreateInput:
+      type: object
+      required:
+        - name
+        - price
+        - category
+        - stock
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        description:
+          type: string
+          maxLength: 500
+        price:
+          type: number
+          minimum: 0
+        category:
+          type: string
+          maxLength: 50
+        stock:
+          type: integer
+          minimum: 0
+    ProductUpdateInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        description:
+          type: string
+          maxLength: 500
+        price:
+          type: number
+          minimum: 0
+        category:
+          type: string
+          maxLength: 50
+        stock:
+          type: integer
+          minimum: 0
+    ApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Operation successful
+        data:
+          type: object
+    PageMeta:
+      type: object
+      properties:
+        next_cursor:
+          type: string
+          nullable: true
+          description: Cursor for the next page of results
+          example: "10"
+        prev_cursor:
+          type: string
+          nullable: true
+          description: Cursor for the previous page of results
+          example: "5"
+        has_more:
+          type: boolean
+          description: Indicates if there are more results available
+          example: true
+        count:
+          type: integer
+          nullable: true
+          description: Total count of items (optional)
+          example: 50
+    PaginatedProductResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Product'
+            page_meta:
+              $ref: '#/components/schemas/PageMeta'
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            message:
+              type: string
+              example: Error message description
+            errors:
+              type: object
+              nullable: true
+security:
+  - userId: []
+    userRole: []
+paths:
+  /products:
+    get:
+      summary: List products
+      description: Retrieve a list of products with optional filtering and pagination.
+      operationId: listProducts
+      parameters:
+        - in: query
+          name: category
+          schema:
+            type: string
+            maxLength: 50
+          description: Filter by category
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/ProductStatus'
+          description: Filter by status
+        - in: query
+          name: minPrice
+          schema:
+            type: number
+          description: Minimum price filter
+        - in: query
+          name: maxPrice
+          schema:
+            type: number
+          description: Maximum price filter
+        - in: query
+          name: search
+          schema:
+            type: string
+            maxLength: 100
+          description: Search term for name or description
+        - in: query
+          name: cursor
+          schema:
+            type: string
+          description: Cursor for pagination (using next_cursor and prev_cursor base on last request)
+          example: ""
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+            maximum: 100
+          description: Number of items to return per page
+          example: 10
+        - in: query
+          name: direction
+          schema:
+            type: string
+            enum: [next, prev]
+            default: next
+          description: Direction of pagination (next or prev)
+          example: "next"
+      responses:
+        '200':
+          description: Successful operation with pagination metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedProductResponse'
+              example:
+                success: true
+                message: Products retrieved successfully
+                data:
+                  - id: 1
+                    name: "Laptop"
+                    description: "High-performance laptop"
+                    price: 999.99
+                    category: "Electronics"
+                    stock: 10
+                    status: "ACTIVE"
+                    ownerId: 1
+                    createdAt: "2024-01-01T00:00:00Z"
+                    updatedAt: "2024-01-01T00:00:00Z"
+                    deletedAt: null
+                  - id: 2
+                    name: "Mouse"
+                    description: "Wireless mouse"
+                    price: 29.99
+                    category: "Electronics"
+                    stock: 50
+                    status: "ACTIVE"
+                    ownerId: 1
+                    createdAt: "2024-01-01T00:00:00Z"
+                    updatedAt: "2024-01-01T00:00:00Z"
+                    deletedAt: null
+                page_meta:
+                  next_cursor: "2"
+                  prev_cursor: null
+                  has_more: true
+                  count: 50
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      summary: Create a product
+      description: Create a new product.
+      operationId: createProduct
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductCreateInput'
+      responses:
+        '201':
+          description: Product created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Product'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /products/{id}:
+    get:
+      summary: Get product by ID
+      description: Retrieve a single product by its ID.
+      operationId: getProductById
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: Product ID
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Product'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      summary: Update product
+      description: Update an existing product.
+      operationId: updateProduct
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: Product ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductCreateInput'
+      responses:
+        '200':
+          description: Product updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Product'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      summary: Partial update product
+      description: Partially update an existing product.
+      operationId: partialUpdateProduct
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: Product ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductUpdateInput'
+      responses:
+        '200':
+          description: Product updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Product'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Delete product
+      description: Delete a product by its ID.
+      operationId: deleteProduct
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: Product ID
+      responses:
+        '200':
+          description: Product deleted successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - properties:
+                      data:
+                        $ref: '#/components/schemas/Product'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

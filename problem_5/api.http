@@ -1,0 +1,47 @@
+### Create product
+POST http://localhost:4000/api/v1/products
+Content-Type: application/json
+X-User-Id: 1
+X-User-Role: SELLER
+
+{
+  "name": "Test Product6",
+  "price": 99.99,
+  "category": "Electronics",
+  "stock": 10
+}
+
+
+### List products (first page)
+GET http://localhost:4000/api/v1/products?limit=5
+Content-Type: application/json
+X-User-Id: 1
+X-User-Role: SELLER
+
+
+### List products (with pagination - next page)
+GET http://localhost:4000/api/v1/products?limit=5&cursor=2582&direction=next
+Content-Type: application/json
+X-User-Id: 1
+X-User-Role: SELLER
+
+
+### List products (with pagination - previous page)
+GET http://localhost:4000/api/v1/products?limit=5&cursor=2582&direction=prev
+Content-Type: application/json
+X-User-Id: 1
+X-User-Role: SELLER
+
+
+### List products with filters and pagination
+GET http://localhost:4000/api/v1/products?limit=5&category=Electronics&status=ACTIVE
+Content-Type: application/json
+X-User-Id: 1
+X-User-Role: SELLER
+
+
+### List products with search and pagination
+GET http://localhost:4000/api/v1/products?limit=5&search=Test
+Content-Type: application/json
+X-User-Id: 1
+X-User-Role: SELLER

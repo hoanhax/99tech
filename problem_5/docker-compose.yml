@@ -1,0 +1,66 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: problem5_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 2s # Check every 2 seconds (faster than 10s)
+      timeout: 3s # Reduced timeout
+      retries: 5 # Keep retries the same
+      start_period: 5s # Grace period for initial startup
+    networks:
+      - app_network
+
+  # Express.js Backend Application
+  app:
+    build:
+      context: .
+      target: development
+    container_name: problem5_app
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Override DB_HOST to use container name instead of localhost
+      - DB_HOST=postgres
+      - NODE_ENV=development
+    ports:
+      - "${PORT}:4000"
+    volumes:
+      # Mount source code for hot-reload
+      - ./src:/app/src
+      - ./prisma:/app/prisma
+      - ./package.json:/app/package.json
+      - ./package-lock.json:/app/package-lock.json
+      - ./tsconfig.json:/app/tsconfig.json
+      - ./jest.config.js:/app/jest.config.js
+
+      - ./tests:/app/tests
+      # Prevent node_modules from being overwritten
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app_network
+    command: sh -c "npx prisma generate && npx prisma migrate dev --name init && npm run prisma:seed && npm run dev"
+
+# Named volumes for data persistence
+volumes:
+  postgres_data:
+    driver: local
+
+# Network for service communication
+networks:
+  app_network:
+    driver: bridge

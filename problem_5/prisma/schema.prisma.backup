@@ -1,0 +1,77 @@
+// This is your Prisma schema file
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Example: Product Model
+model Product {
+  id    Int     @id @default(autoincrement())
+  name        String
+  description String?
+  price       Decimal  @db.Decimal(10, 2)
+  category    String
+  stock       Int      @default(0)
+  status      ProductStatus @default(ACTIVE)
+
+  // Relations (if needed)
+  ownerId     Int
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  @@index([ownerId])
+  @@index([category])
+  @@index([status])
+  @@index([name])
+  @@map("products")
+}
+
+// Example: User Model (for relations)
+model User {
+  id    Int     @id @default(autoincrement())
+  email     String   @unique
+  name      String
+  password  String
+  role      Role     @default(USER)
+  status    UserStatus @default(ACTIVE)
+
+  // Relations
+  products  Product[]
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+
+  @@index([email])
+  @@map("users")
+}
+
+// Enums
+enum Role {
+  USER
+  ADMIN
+  SELLER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  BANNED
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+  DELETED
+  OUT_OF_STOCK
+}
